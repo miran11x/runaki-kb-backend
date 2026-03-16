@@ -3,8 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
-app.use(express.json());
+app.use(cors({ origin: '*', credentials: false }));app.use(express.json());
 
 app.use('/api/auth',  require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
