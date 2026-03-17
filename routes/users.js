@@ -100,3 +100,25 @@ router.post('/:id/reset-password', auth(['team_lead']), async (req, res) => {
 });
 
 module.exports = router;
+
+// GET agent leaderboard (team_lead only)
+router.get('/leaderboard', auth(['team_lead']), async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT u.id, u.name, u.title, u.role,
+        COUNT(DISTINCT fv.faq_id) as faqs_viewed,
+        COUNT(DISTINCT b.faq_id) as bookmarks,
+        COUNT(DISTINCT fr.faq_id) FILTER (WHERE fr.helpful=true) as helpful_ratings,
+        MAX(u.last_seen) as last_seen
+      FROM users u
+      LEFT JOIN faq_views fv ON fv.user_id = u.id
+      LEFT JOIN bookmarks b ON b.user_id = u.id
+      LEFT JOIN faq_ratings fr ON fr.user_id = u.id
+      WHERE u.role = 'agent' AND u.is_active = true
+      GROUP BY u.id, u.name, u.title, u.role
+      ORDER BY faqs_viewed DESC, bookmarks DESC
+      LIMIT 20
+    `);
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});

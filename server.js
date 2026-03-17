@@ -3,12 +3,16 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(cors({ origin: '*', credentials: false }));app.use(express.json());
+app.use(cors({ origin: '*', credentials: false }));
+app.use(express.json());
 
 app.use('/api/auth',  require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/faqs',  require('./routes/faqs'));
 app.use('/api/tips',  require('./routes/tips'));
+app.use('/api/bookmarks', require('./routes/bookmarks'));
+app.use('/api/ratings', require('./routes/ratings'));
+app.use('/api/announcements', require('./routes/announcements'));
 app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date() }));
 
 // Clean stale sessions every 10 min
