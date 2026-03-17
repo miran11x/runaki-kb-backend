@@ -62,7 +62,7 @@ router.post('/:id/view', auth(), async (req, res) => {
 
 // POST create FAQ
 router.post('/', auth(['qa_officer','team_lead']), async (req, res) => {
-  const { category, subcategory, question_en, answer_en, question_ku, answer_ku, tags, is_published } = req.body;
+  const { category, subcategory, question_en, answer_en, question_ku, answer_ku, tags, is_published, tags_arr } = req.body;
   if (!category || !question_en || !answer_en) return res.status(400).json({ error: 'Category, question, answer required' });
   const r = await pool.query(`
     INSERT INTO faqs(category,subcategory,question_en,answer_en,question_ku,answer_ku,tags,is_published,created_by)
@@ -76,7 +76,7 @@ router.post('/', auth(['qa_officer','team_lead']), async (req, res) => {
 
 // PUT update FAQ
 router.put('/:id', auth(['qa_officer','team_lead']), async (req, res) => {
-  const { category, subcategory, question_en, answer_en, question_ku, answer_ku, tags, is_published } = req.body;
+  const { category, subcategory, question_en, answer_en, question_ku, answer_ku, tags, is_published, tags_arr } = req.body;
   const r = await pool.query(`
     UPDATE faqs SET category=$1,subcategory=$2,question_en=$3,answer_en=$4,
     question_ku=$5,answer_ku=$6,tags=$7,is_published=$8,updated_by=$9,updated_at=NOW()
@@ -94,6 +94,24 @@ router.delete('/:id', auth(['team_lead']), async (req, res) => {
   await pool.query(`INSERT INTO activity_log(user_id,action,details) VALUES($1,'DELETE_FAQ',$2)`,
     [req.user.id, `Deleted FAQ #${req.params.id}`]);
   res.json({ ok: true });
+});
+
+
+// GET FAQs by tag
+router.get('/by-tag/:tag', auth(), async (req, res) => {
+  const r = await pool.query(
+    `SELECT * FROM faqs WHERE $1 = ANY(tags_arr) AND is_published=true ORDER BY category, subcategory`,
+    [req.params.tag]
+  ).catch(() => null);
+  r ? res.json(r.rows) : res.status(500).json({ error: 'Server error' });
+});
+
+// GET all unique tags
+router.get('/tags/all', auth(), async (req, res) => {
+  const r = await pool.query(
+    `SELECT DISTINCT unnest(tags_arr) as tag FROM faqs WHERE array_length(tags_arr,1) > 0 ORDER BY tag`
+  ).catch(() => null);
+  r ? res.json(r.rows.map(x => x.tag)) : res.status(500).json({ error: 'Server error' });
 });
 
 module.exports = router;

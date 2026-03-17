@@ -99,6 +99,65 @@ router.post('/:id/reset-password', auth(['team_lead']), async (req, res) => {
   res.json({ ok: true });
 });
 
+
+// GET my profile stats
+router.get('/profile/me', auth(), async (req, res) => {
+  try {
+    const [b, r, v, t] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM bookmarks WHERE user_id=$1', [req.user.id]),
+      pool.query('SELECT COUNT(*) FILTER (WHERE helpful=true) as helpful, COUNT(*) as total FROM faq_ratings WHERE user_id=$1', [req.user.id]),
+      pool.query('SELECT COUNT(DISTINCT faq_id) FROM faq_views WHERE user_id=$1', [req.user.id]),
+      pool.query('SELECT COUNT(*) FROM login_events WHERE user_id=$1', [req.user.id]),
+    ]);
+    res.json({
+      bookmarks: parseInt(b.rows[0].count),
+      helpful_ratings: parseInt(r.rows[0].helpful),
+      total_ratings: parseInt(r.rows[0].total),
+      faqs_viewed: parseInt(v.rows[0].count),
+      total_logins: parseInt(t.rows[0].count),
+    });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// GET weekly trends (logins per day last 14 days)
+router.get('/stats/weekly', auth(['team_lead']), async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT DATE(logged_in_at) as day, COUNT(*) as logins
+      FROM login_events
+      WHERE logged_in_at > NOW() - INTERVAL '14 days'
+      GROUP BY DATE(logged_in_at) ORDER BY day
+    `);
+    res.json(r.rows);
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// GET peak hours (0-23)
+router.get('/stats/peak-hours', auth(['team_lead']), async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT hour_of_day as hour, COUNT(*) as logins
+      FROM login_events
+      WHERE logged_in_at > NOW() - INTERVAL '30 days'
+      GROUP BY hour_of_day ORDER BY hour_of_day
+    `);
+    res.json(r.rows);
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// PATCH reset agent password (team_lead only)
+router.patch('/:id/reset-password', auth(['team_lead']), async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'Password too short' });
+  try {
+    const bcrypt = require('bcryptjs');
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password=$1 WHERE id=$2', [hash, req.params.id]);
+    await pool.query(`INSERT INTO activity_log(user_id,action,details) VALUES($1,'RESET_PASSWORD',$2)`, [req.user.id, `Reset password for user ID ${req.params.id}`]);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
 module.exports = router;
 
 // GET agent leaderboard (team_lead only)
