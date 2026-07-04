@@ -62,12 +62,58 @@ router.post('/:id/view', auth(), async (req, res) => {
 
 // POST create FAQ
 router.post('/', auth(['qa_officer','team_lead']), async (req, res) => {
-  const { category, subcategory, question_en, answer_en, question_ku, answer_ku, tags, is_published, tags_arr } = req.body;
+  const {
+  category,
+  subcategory,
+  question_en,
+  answer_en,
+  question_ku,
+  answer_ku,
+  question_ba,
+  answer_ba,
+  question_ar,
+  answer_ar,
+  tags,
+  is_published,
+  tags_arr
+} = req.body;
   if (!category || !question_en || !answer_en) return res.status(400).json({ error: 'Category, question, answer required' });
   const r = await pool.query(`
-    INSERT INTO faqs(category,subcategory,question_en,answer_en,question_ku,answer_ku,tags,is_published,created_by)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
-  `, [category, subcategory, question_en, answer_en, question_ku||null, answer_ku||null, tags||null, is_published!==false, req.user.id]).catch(() => null);
+   INSERT INTO faqs(
+  category,
+  subcategory,
+  question_en,
+  answer_en,
+  question_ku,
+  answer_ku,
+  question_ba,
+  answer_ba,
+  question_ar,
+  answer_ar,
+  tags,
+  is_published,
+  created_by
+)
+VALUES(
+  $1,$2,$3,$4,$5,$6,
+  $7,$8,$9,$10,
+  $11,$12,$13
+) RETURNING *
+  `, [
+  category,
+  subcategory,
+  question_en,
+  answer_en,
+  question_ku || null,
+  answer_ku || null,
+  question_ba || null,
+  answer_ba || null,
+  question_ar || null,
+  answer_ar || null,
+  tags || null,
+  is_published !== false,
+  req.user.id
+]).catch(() => null);
   if (!r) return res.status(500).json({ error: 'Server error' });
   await pool.query(`INSERT INTO activity_log(user_id,action,details) VALUES($1,'CREATE_FAQ',$2)`,
     [req.user.id, `Created: "${question_en.substring(0,60)}"`]);
@@ -76,12 +122,54 @@ router.post('/', auth(['qa_officer','team_lead']), async (req, res) => {
 
 // PUT update FAQ
 router.put('/:id', auth(['qa_officer','team_lead']), async (req, res) => {
-  const { category, subcategory, question_en, answer_en, question_ku, answer_ku, tags, is_published, tags_arr } = req.body;
+  const {
+  category,
+  subcategory,
+  question_en,
+  answer_en,
+  question_ku,
+  answer_ku,
+  question_ba,
+  answer_ba,
+  question_ar,
+  answer_ar,
+  tags,
+  is_published,
+  tags_arr
+} = req.body;
   const r = await pool.query(`
-    UPDATE faqs SET category=$1,subcategory=$2,question_en=$3,answer_en=$4,
-    question_ku=$5,answer_ku=$6,tags=$7,is_published=$8,updated_by=$9,updated_at=NOW()
-    WHERE id=$10 RETURNING *
-  `, [category, subcategory, question_en, answer_en, question_ku, answer_ku, tags, is_published, req.user.id, req.params.id]).catch(() => null);
+  UPDATE faqs SET
+category=$1,
+subcategory=$2,
+question_en=$3,
+answer_en=$4,
+question_ku=$5,
+answer_ku=$6,
+question_ba=$7,
+answer_ba=$8,
+question_ar=$9,
+answer_ar=$10,
+tags=$11,
+is_published=$12,
+updated_by=$13,
+updated_at=NOW()
+WHERE id=$14 RETURNING *
+  `, [
+  category,
+  subcategory,
+  question_en,
+  answer_en,
+  question_ku,
+  answer_ku,
+  question_ba,
+  answer_ba,
+  question_ar,
+  answer_ar,
+  tags,
+  is_published,
+  req.user.id,
+  req.params.id
+]).catch(() => null);
   if (!r) return res.status(500).json({ error: 'Server error' });
   await pool.query(`INSERT INTO activity_log(user_id,action,details) VALUES($1,'UPDATE_FAQ',$2)`,
     [req.user.id, `Updated FAQ #${req.params.id}`]);
