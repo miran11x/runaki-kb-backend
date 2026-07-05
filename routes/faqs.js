@@ -235,9 +235,7 @@ if (!faq.question_en || !faq.answer_en) {
           question_ba,
           answer_ba,
           question_ar,
-          answer_ar,
-          is_published,
-          created_by
+          answer_ar
         )
         VALUES(
           $1,$2,$3,$4,$5,$6,
