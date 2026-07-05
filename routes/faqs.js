@@ -214,7 +214,7 @@ router.post('/import', auth(['qa_officer','team_lead']), async (req, res) => {
 
   try {
     let imported = 0;
-
+console.log(rows[0]);
     for (const faq of rows) {
 
       
@@ -250,13 +250,13 @@ if (!faq.question_en || !faq.answer_en) {
   faq.question_en,
   faq.answer_en,
 
-  faq.question_ku || 'وەرگێڕان لە ژێر ئامادەکردندایە',
+  faq.question_ku || null,
   faq.answer_ku || '🚧 وەرگێڕان لە ژێر ئامادەکردندایە. بەزوویی زیاد دەکرێت.',
 
-  faq.question_ba || 'وەرگێران ل ژێر ئامادەکرنێ دایە',
+  faq.question_ba || null,
   faq.answer_ba || '🚧 وەرگێران ل ژێر ئامادەکرنێ دایە. ب زوویی دهێتە زیادکرن.',
 
-  faq.question_ar || 'الترجمة قيد الإعداد',
+  faq.question_ar || null,
   faq.answer_ar || '🚧 الترجمة قيد الإعداد. ستتوفر قريباً.',
 
   true,
