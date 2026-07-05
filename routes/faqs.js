@@ -202,4 +202,80 @@ router.get('/tags/all', auth(), async (req, res) => {
   r ? res.json(r.rows.map(x => x.tag)) : res.status(500).json({ error: 'Server error' });
 });
 
+// IMPORT FAQs FROM EXCEL JSON
+router.post('/import', auth(['qa_officer','team_lead']), async (req, res) => {
+  const rows = req.body.rows;
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({
+      error: 'No FAQ rows provided'
+    });
+  }
+
+  try {
+    let imported = 0;
+
+    for (const faq of rows) {
+
+      
+if (!faq.question_en || !faq.answer_en) {
+    continue;
+  }
+
+  await pool.query(
+`
+        INSERT INTO faqs(
+          category,
+          subcategory,
+          third_level,
+          question_en,
+          answer_en,
+          question_ku,
+          answer_ku,
+          question_ba,
+          answer_ba,
+          question_ar,
+          answer_ar,
+          is_published,
+          created_by
+        )
+        VALUES(
+          $1,$2,$3,$4,$5,$6,
+          $7,$8,$9,$10,$11,$12
+        )
+      `, [
+  faq.category || 'General',
+  faq.subcategory || null,
+  faq.third_level || null,
+  faq.question_en,
+  faq.answer_en,
+
+  faq.question_ku || 'وەرگێڕان لە ژێر ئامادەکردندایە',
+  faq.answer_ku || '🚧 وەرگێڕان لە ژێر ئامادەکردندایە. بەزوویی زیاد دەکرێت.',
+
+  faq.question_ba || 'وەرگێران ل ژێر ئامادەکرنێ دایە',
+  faq.answer_ba || '🚧 وەرگێران ل ژێر ئامادەکرنێ دایە. ب زوویی دهێتە زیادکرن.',
+
+  faq.question_ar || 'الترجمة قيد الإعداد',
+  faq.answer_ar || '🚧 الترجمة قيد الإعداد. ستتوفر قريباً.',
+
+  true,
+  req.user.id
+]);
+
+      imported++;
+    }
+
+    res.json({
+      success: true,
+      imported
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
+
 module.exports = router;
