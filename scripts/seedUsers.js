@@ -215,10 +215,11 @@ async function seedUsers() {
     console.log(`  Total:   ${users.length}`);
 
     process.exit(0);
-  } catch (err) {
-    console.error('❌ Error:', err.message);
-    process.exit(1);
-  }
+} catch (err) {
+  console.error('❌ FULL ERROR');
+  console.error(err);
+  process.exit(1);
+}
 }
 
 seedUsers();
