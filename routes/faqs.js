@@ -176,6 +176,44 @@ WHERE id=$14 RETURNING *
   res.json(r.rows[0]);
 });
 
+
+// BULK DELETE FAQs
+router.post('/bulk-delete', auth(['team_lead']), async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        error: 'No IDs supplied'
+      });
+    }
+
+    await pool.query(
+      'DELETE FROM faqs WHERE id = ANY($1)',
+      [ids]
+    );
+
+    await pool.query(
+      `INSERT INTO activity_log(user_id,action,details)
+       VALUES($1,'BULK_DELETE_FAQ',$2)`,
+      [
+        req.user.id,
+        `Deleted ${ids.length} FAQs`
+      ]
+    );
+
+    res.json({
+      success: true,
+      deleted: ids.length
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: 'Failed to delete FAQs'
+    });
+  }
+});
 // DELETE FAQ
 router.delete('/:id', auth(['team_lead']), async (req, res) => {
   await pool.query('DELETE FROM faqs WHERE id=$1', [req.params.id]).catch(() => {});
