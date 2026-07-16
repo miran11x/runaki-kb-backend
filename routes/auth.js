@@ -15,16 +15,22 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const r = await pool.query(
-      `
-      SELECT *
-      FROM users
-      WHERE LOWER(email) = LOWER($1)
-         OR wave_id = $1
-      LIMIT 1
-      `,
-      [identifier]
-    );
+   const r = await pool.query(
+  `
+  SELECT *
+  FROM users
+  WHERE (
+    role = 'agent'
+    AND wave_id = $1
+  )
+  OR (
+    role <> 'agent'
+    AND LOWER(email) = LOWER($1)
+  )
+  LIMIT 1
+  `,
+  [identifier.trim()]
+);
 
     if (!r.rows.length) {
       return res.status(401).json({
