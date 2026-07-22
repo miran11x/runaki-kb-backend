@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const speakeasy = require('speakeasy');
 const pool = require('../db');
 const auth = require('../middleware/auth');
 require('dotenv').config();
@@ -54,6 +55,14 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    if (user.mfa_enabled) {
+  return res.json({
+    ok: true,
+    mfaRequired: true,
+    userId: user.id
+  });
+}
+
     const token = jwt.sign(
       {
         id: user.id,
@@ -101,7 +110,7 @@ router.post('/login', async (req, res) => {
     });
   }
 });
-``
+
 
 router.post('/ping', auth(), async (req, res) => {
   try {
@@ -125,5 +134,78 @@ router.get('/me', auth(), async (req, res) => {
     res.json(r.rows[0]);
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
+
+router.post('/verify-mfa', async (req, res) => {
+  const { userId, code } = req.body;
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    const user = result.rows[0];
+
+    const verified = speakeasy.totp.verify({
+      secret: user.mfa_secret,
+      encoding: 'base32',
+      token: code,
+      window: 1
+    });
+
+    if (!verified) {
+      return res.status(401).json({
+        error: 'Invalid authenticator code'
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        wave_id: user.wave_id,
+        role: user.role,
+        title: user.title
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: process.env.JWT_EXPIRES_IN
+      }
+    );
+
+    await pool.query(
+      'UPDATE users SET last_seen = NOW() WHERE id = $1',
+      [user.id]
+    );
+
+    res.json({
+      ok: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        wave_id: user.wave_id,
+        role: user.role,
+        title: user.title
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: 'Server error'
+    });
+  }
+});
+
 
 module.exports = router;
